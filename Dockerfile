@@ -11,8 +11,8 @@ ARG RESTY_IMAGE_TAG="bookworm-slim"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
-ARG RESTY_VERSION="1.29.8.1"
-ARG RESTY_RELEASE="292"
+ARG RESTY_VERSION="1.31.0.1"
+ARG RESTY_RELEASE="301"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.0"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.12.2"
@@ -115,7 +115,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_security_headers_module \
     --add-module=/build/modules/ngx_http_server_redirect_module \
     --add-module=/build/modules/ngx_http_sorted_args_module \
-    --add-module=/build/modules/ngx_http_stream_server_traffic_status_module \
     --add-module=/build/modules/ngx_http_sysguard_module \
     --add-module=/build/modules/ngx_http_trim_filter_module \
     --add-module=/build/modules/ngx_http_cache_dechunk_filter_module \
@@ -125,13 +124,13 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
-    --add-module=/build/modules/ngx_http_vhost_traffic_status_module \
     --add-module=/build/modules/ngx_http_waf_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
     --add-module=/build/modules/ngx_lua_events_module \
     --add-module=/build/modules/ngx_lua_load_var_index_module \
     --add-module=/build/modules/ngx_lua_resty_lmdb_module \
+    --add-module=/build/modules/ngx_lua_upstream_state_module \
     --add-module=/build/modules/ngx_ssl_fingerprint_module \
     --add-module=/build/modules/ngx_stream_access_control_module \
     --add-module=/build/modules/ngx_stream_error_log_write_module \
@@ -140,7 +139,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_stream_log_var_set_module \
     --add-module=/build/modules/ngx_stream_lua_config_module \
     --add-module=/build/modules/ngx_stream_lua_upstream_module \
-    --add-module=/build/modules/ngx_stream_server_traffic_status_module \
     --add-module=/build/modules/ngx_stream_var_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
@@ -299,9 +297,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_netstorage_module.git ngx_http_proxy_auth_netstorage_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_auth_aws_module.git ngx_http_proxy_auth_aws_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_geoip2_module.git ngx_geoip2_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-vts.git ngx_http_vhost_traffic_status_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_sorted_args_module.git ngx_http_sorted_args_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-sts.git ngx_http_stream_server_traffic_status_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/openresty/replace-filter-nginx-module.git ngx_http_replace_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_error_log_write_module.git ngx_http_error_log_write_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_extra_variables_module.git ngx_http_extra_variables_module \
@@ -339,7 +335,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_label_module.git ngx_stream_label_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_var_module.git ngx_stream_var_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_extra_variables_module.git ngx_stream_extra_variables_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/vozlt/nginx-module-stream-sts.git ngx_stream_server_traffic_status_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
@@ -354,6 +350,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 --branch v0.05 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/api7/jsonschema.git jsonschema \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-dns-client.git lua-resty-dns-client \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd /build \
     && curl -sSf https://sh.rustup.rs | sh -s -- -y \
@@ -442,13 +439,16 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/openresty-fix_prefix_1.27.1.2+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/headers-more-nginx-module-* \
     && echo "patching ngx_http_headers_more_filter_module" \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module_0.37-ext.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_headers_more_filter_module-ext_0.37+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-* \
     && echo "patching ngx_stream_lua_module" \
-    && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module_0.0.18RC2-expose_request_struct.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module-expose_request_struct_0.0.18RC2+.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-websocket-* \
+    && echo "patching lua-resty-websocket" \
+    && patch -p1 < /build/patches/openresty/patches/lua-resty-websocket-fix_stream_0.13+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
-    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.29.8+.patch \
+    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.0+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_fingerprint_module" \
@@ -483,18 +483,16 @@ RUN groupmod -n nginx www-data \
     && make -j${RESTY_J} build \
     && make -j${RESTY_J} install \
     && cd /build/modules \
-    && cp -r ngx_lua_load_var_index_module/lualib/resty/*.lua /usr/local/openresty/lualib/resty \
-    && mkdir -p /usr/local/openresty/lualib/resty/events/compat \
-    && cp -r ngx_lua_events_module/lualib/resty/events/*.lua /usr/local/openresty/lualib/resty/events \
-    && cp -r ngx_lua_events_module/lualib/resty/events/compat/*.lua /usr/local/openresty/lualib/resty/events/compat \
-    && mkdir -p /usr/local/openresty/lualib/resty/lmdb \
-    && cp -r ngx_lua_resty_lmdb_module/lib/resty/*.lua /usr/local/openresty/lualib/resty \
-    && cp -r ngx_lua_resty_lmdb_module/lib/resty/lmdb/*.lua /usr/local/openresty/lualib/resty/lmdb \
+    && cp -r ngx_lua_load_var_index_module/lualib/* /usr/local/openresty/lualib/ \
+    && cp -r ngx_lua_events_module/lualib/* /usr/local/openresty/lualib/ \
+    && cp -r ngx_lua_upstream_state_module/lualib/* /usr/local/openresty/lualib/ \
+    && cp -r ngx_lua_resty_lmdb_module/lib/* /usr/local/openresty/lualib/ \
     && cd /build/lualib \
-    && cp -r lua-resty-multipart-parser/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp -r lua-resty-balancer/lib/resty/* /usr/local/openresty/lualib/resty \
-    && cp -r jsonschema/lib/* /usr/local/openresty/lualib \
-    && cp -r lua-resty-dns-client/src/resty/dns/* /usr/local/openresty/lualib/resty/dns \
+    && cp -r lua-resty-multipart-parser/lib/* /usr/local/openresty/lualib/ \
+    && cp -r lua-resty-balancer/lib/* /usr/local/openresty/lualib/ \
+    && cp -r jsonschema/lib/* /usr/local/openresty/lualib/ \
+    && cp -r lua-resty-dns-client/src/* /usr/local/openresty/lualib/ \
+    && cp -r lua-resty-mlcache/lib/* /usr/local/openresty/lualib/ \
     && cd /build/lualib/lua-lolhtml \
     && make -j${RESTY_J} CFLAGS="-O3 -fPIC -I/usr/local/openresty/luajit/include/luajit-2.1" \
     && cp lolhtml.so /usr/local/openresty/lualib \
@@ -517,15 +515,17 @@ RUN groupmod -n nginx www-data \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-kafka \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-template \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-mlcache \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-cookie \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-worker-events \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-healthcheck \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ipmatcher \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-expr \
-    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-connector \
+    && /usr/local/openresty/luajit/bin/luarocks install api7-lua-resty-redis-connector \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-redis-cluster \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-timer-ng \
     && /usr/local/openresty/luajit/bin/luarocks install lua-resty-maxminddb \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-m3u8 \
+    && /usr/local/openresty/luajit/bin/luarocks install lua-resty-ctx \
     && mkdir -p /usr/local/openresty/share/uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
     && cd /usr/local/openresty/share \
