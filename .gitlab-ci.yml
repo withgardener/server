@@ -1,8 +1,8 @@
 variables:
-  RESTY_VERSION: 1.31.0.1
-  RESTY_RELEASE: 301
+  RESTY_VERSION: 1.31.1.1
+  RESTY_RELEASE: 304
   VERSION: ${RESTY_VERSION}.${RESTY_RELEASE}
-  IMAGE_NAME: registry.hanada.info/hanada/openresty
+  IMAGE_NAME: registry.hanada.info/openresty/openresty
 
 stages:
   - build
@@ -17,13 +17,13 @@ build-amd64:
       - main
   script:
     - >
-      docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
-    - >
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${VERSION}-amd64" \
         .
+    - >
+      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
     - >
       docker push "${IMAGE_NAME}:${VERSION}-amd64"
 
@@ -36,13 +36,13 @@ build-arm64:
       - main
   script:
     - >
-      docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
-    - >
       docker build \
         --build-arg RESTY_VERSION="${RESTY_VERSION}" \
         --build-arg RESTY_RELEASE="${RESTY_RELEASE}" \
         -t "${IMAGE_NAME}:${VERSION}-arm64" \
         .
+    - >
+      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
     - >
       docker push "${IMAGE_NAME}:${VERSION}-arm64"
 
@@ -58,7 +58,7 @@ create-manifest:
       - main
   script:
     - >
-      docker login -u "${NEXUS_USERNAME}" -p "${NEXUS_PASSWORD}" registry.hanada.info
+      docker login -u "${HARBOR_USERNAME}" -p "${HARBOR_PASSWORD}" registry.hanada.info
     - >
       docker manifest inspect "${IMAGE_NAME}:${VERSION}-amd64" || exit 1
     - >
