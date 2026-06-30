@@ -11,7 +11,7 @@ ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
 ARG RESTY_VERSION="1.31.1.1"
-ARG RESTY_RELEASE="324"
+ARG RESTY_RELEASE="331"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
 ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
@@ -46,6 +46,7 @@ ARG RESTY_ZLIB_VERSION="1.3.2"
 ARG RESTY_ZSTD_VERSION="1.5.7"
 ARG RESTY_LIBATOMIC_VERSION="7.10.0"
 ARG RESTY_LIBVIPS_VERSION="8.18.2"
+ARG RESTY_MODSECURITY_VERSION="3.0.15"
 ARG RESTY_OWSAP_CRS_VERSION="4.26.0"
 ARG RESTY_PATH_OPTIONS="\
     --prefix=/usr/local/openresty \
@@ -131,7 +132,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
     --add-module=/build/modules/ngx_http_var_module \
-    --add-module=/build/modules/ngx_http_waf_module \
+    --add-module=/build/modules/ngx_http_modsecurity_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
     --add-module=/build/modules/ngx_lua_events_module \
@@ -167,6 +168,7 @@ LABEL resty_zlib_version="${RESTY_ZLIB_VERSION}"
 LABEL resty_zstd_version="${RESTY_ZSTD_VERSION}"
 LABEL resty_jemalloc_version="${RESTY_JEMALLOC_VERSION}"
 LABEL resty_libmaxminddb_version="${RESTY_LIBMAXMINDDB_VERSION}"
+LABEL resty_modsecurity_version="${RESTY_MODSECURITY_VERSION}"
 
 RUN groupmod -n nginx www-data \
     && usermod -l nginx www-data \
@@ -242,8 +244,6 @@ RUN groupmod -n nginx www-data \
         libwebp-dev \
         meson \
         flex \
-        libmodsecurity3 \
-        libmodsecurity-dev \
         libsodium23 \
         libsodium-dev \
         libunwind8 \
@@ -256,6 +256,8 @@ RUN groupmod -n nginx www-data \
         libclang-dev \
         libcjson1 \
         libcjson-dev \
+        libyajl2 \
+        libyajl-dev \
     && mkdir -p /build \
     && cd /build \
     && curl -fSL ${RESTY_SRC_URL_BASE}/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
@@ -284,6 +286,7 @@ RUN groupmod -n nginx www-data \
     && curl -fSL https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
+    && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity \
     && cd /build/modules \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
@@ -349,10 +352,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
     && rm -rf tengine \
-    && git clone --depth=1 --branch current https://${RESTY_GIT_MIRROR}/ADD-SP/ngx_waf.git ngx_http_waf_module \
-    && cd /build/modules/ngx_http_waf_module \
-    && git clone --depth=1 --branch v1.7.16 https://${RESTY_GIT_MIRROR}/DaveGamble/cJSON.git lib/cjson \
-    && git clone --depth=1 --branch v2.3.0 https://${RESTY_GIT_MIRROR}/troydhanson/uthash.git lib/uthash \
+    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity-nginx.git ngx_http_modsecurity_module \
     && cd /build/lualib \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/agentzh/lua-resty-multipart-parser.git lua-resty-multipart-parser \
     && git clone --depth=1 --branch v0.05 https://${RESTY_GIT_MIRROR}/openresty/lua-resty-balancer.git lua-resty-balancer \
@@ -369,18 +369,22 @@ RUN groupmod -n nginx www-data \
         EXTRA_CXXFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
         EXTRA_CFLAGS="-Wformat -Werror=format-security -Wno-missing-attributes -Wno-unused-variable -fstack-protector-strong -ffunction-sections -fdata-sections -fPIC" \
     && make install \
+    && ldconfig \
     && cd /build/lib/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION} \
     && ./configure \
     && make -j${RESTY_J} \
     && make check \
     && make install \
+    && ldconfig \
     && cd /build/lib/sregex \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/zlib-${RESTY_ZLIB_VERSION} \
     && ./configure \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
     && curl -s https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/refs/heads/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
@@ -393,32 +397,44 @@ RUN groupmod -n nginx www-data \
     && make update \
     && make -j${RESTY_J} \
     && make -j${RESTY_J} install_sw \
+    && ldconfig \
     && cd /build/lib/pcre2-${RESTY_PCRE_VERSION} \
     && ./configure \
         ${RESTY_PCRE_BUILD_OPTIONS} \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/zstd-${RESTY_ZSTD_VERSION} \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/libatomic_ops-${RESTY_LIBATOMIC_VERSION}/src \
     && ln -s -f ./.libs/libatomic_ops.a . \
     && cd .. \
     && ./configure \
     && make -j${RESTY_J} \
     && make install \
+    && ldconfig \
     && cd /build/lib/vips-${RESTY_LIBVIPS_VERSION} \
     && meson setup build --libdir=lib --buildtype=release "$@" \
     && ninja -C build \
     && ninja -C build install \
+    && ldconfig \
     && cd /build/lib/uap-cpp \
     && mkdir -p build \
     && cd build \
     && cmake .. \
     && make uap-cpp-shared \
     && make install \
+    && ldconfig \
     && mkdir /usr/include/uap-cpp \
     && cp /build/lib/uap-cpp/UaParser /usr/include/uap-cpp \
+    && cd /build/lib/modsecurity \
+    && ./build.sh \
+    && ./configure --prefix=/usr/local --disable-examples \
+    && make -j${RESTY_J} \
+    && make install \
+    && ldconfig \
     && cd /build/modules/ngx_http_brotli_module \
     && mkdir -p deps/brotli/out \
     && cd deps/brotli/out \
@@ -426,13 +442,15 @@ RUN groupmod -n nginx www-data \
         -DCMAKE_C_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
         -DCMAKE_CXX_FLAGS="-O3 -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" .. \
     && cmake --build . --config Release --target install \
+    && ldconfig \
     && cd /build/modules/ngx_http_weserv_module \
     && meson setup build --prefix=/usr \
     && meson compile -C build \
     && meson install -C build \
-    && cd /build/modules/ngx_http_waf_module \
-    && echo 'patching ngx_http_waf_module' \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_waf_module-ext.patch \
+    && ldconfig \
+    && cd /build/modules/ngx_http_modsecurity_module \
+    && echo 'patching ngx_http_modsecurity_module' \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_modsecurity_module-ext.patch \
     && cd /build/modules/ngx_http_flv_live_module \
     && echo 'patching ngx_http_flv_live_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \
@@ -448,9 +466,18 @@ RUN groupmod -n nginx www-data \
     && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_stream_lua-* \
     && echo "patching ngx_stream_lua_module" \
     && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module-expose_request_struct_0.0.18RC2+.patch \
+    && patch -p1 < /build/patches/openresty/patches/ngx_stream_lua_module-access_by_lua_0.0.18RC2+.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-websocket-* \
     && echo "patching lua-resty-websocket" \
     && patch -p1 < /build/patches/openresty/patches/lua-resty-websocket-fix_stream_0.13+.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/lua-resty-core-* \
+    && echo "patching lua-resty-core for preaccess_by_lua" \
+    && patch -p1 < /build/patches/openresty/patches/lua-resty-core-preaccess_by_lua.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
+    && echo "patching ngx_http_lua_module for preaccess_by_lua" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-preaccess_by_lua.patch \
+    && echo "patching ngx_http_lua_module context truncation" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-fix_context_truncation.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
     && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.1+.patch \
@@ -542,9 +569,8 @@ RUN groupmod -n nginx www-data \
     && mv coreruleset-${RESTY_OWSAP_CRS_VERSION} coreruleset \
     && cd coreruleset \
     && rm -rf docs \
-    && mv crs-setup.conf.example crs-setup.conf \
-    && mv rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf \
-    && mv rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf.example rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf \
+    && cp crs-setup.conf.example crs-setup.conf \
+    && find /usr/local/openresty/lib -type f -name '*.so*' -exec strip --strip-unneeded {} + \
     && rustup self uninstall -y \
     && apt-get purge -y \
         libgd-dev \
@@ -582,7 +608,6 @@ RUN groupmod -n nginx www-data \
         libwebp-dev \
         liblcms2-dev \
         flex \
-        libmodsecurity-dev \
         libsodium-dev \
         libcurl4-openssl-dev \
         libunwind-dev \
@@ -595,6 +620,7 @@ RUN groupmod -n nginx www-data \
         libgtest-dev \
         libclang-dev \
         libcjson-dev \
+        libyajl-dev \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get clean -y \
     && rm -rf /build \
@@ -612,6 +638,7 @@ RUN groupmod -n nginx www-data \
     && rm -rf /var/log/apt/* \
     && rm -rf /var/log/*.log \
     && rm -rf /tmp/* \
+    && rm -f /root/.wget-hsts \
     && ldconfig
 
 WORKDIR /usr/local/openresty

@@ -44,6 +44,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Additional operators for the "if" directive](#additional-operators-for-the-if-directive)
     - ["if" with multiple conditions](#if-with-multiple-conditions)
     - [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
+    - [Support for "goto" directive](#support-for-goto-directive)
   - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
     - [Support for forced gzip decompression](#support-for-forced-gzip-decompression)
   - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
@@ -51,12 +52,8 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
     - [Inverse condition support for access\_log directive](#inverse-condition-support-for-access_log-directive)
-  - [ngx\_http\_waf\_module (3rd-party module)](#ngx_http_waf_module-3rd-party-module)
-    - [waf\_bypass](#waf_bypass)
-    - [waf\_cc\_deny\_bypass](#waf_cc_deny_bypass)
-    - [waf\_under\_attack\_bypass](#waf_under_attack_bypass)
-    - [waf\_captcha\_bypass](#waf_captcha_bypass)
-    - [waf\_modsecurity\_bypass](#waf_modsecurity_bypass)
+  - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
+    - [modsecurity\_bypass](#modsecurity_bypass)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent-1)
   - [ngx\_stream\_upstream\_module](#ngx_stream_upstream_module)
@@ -139,7 +136,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_unzstd_filter_module](https://git.hanada.info/hanada/ngx_http_unzstd_filter_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
 * [ngx_http_var_module](https://git.hanada.info/hanada/ngx_http_var_module)
-* [ngx_http_waf_module](https://github.com/ADD-SP/ngx_waf/tree/current)
+* [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
 * [ngx_lua_events_module](https://github.com/Kong/lua-resty-events)
@@ -474,7 +471,7 @@ This patch introduces a directive sub_filter_bypass to bypass sub_filter based o
 
 Defines conditions under which the response will not be replaced. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be replaced.
 
-```
+```nginx
 sub_filter_bypass $cookie_nocache $arg_nocache$arg_comment;
 sub_filter_bypass $http_pragma    $http_authorization;
 ```
@@ -549,7 +546,7 @@ proxy_cookie_value ~session_.* 1234567890 abcdefghij;
 ```
 
 The `cookie_value` can also be specified using regular expressions. In this case, `cookie_value` should either start from the "\~" symbol for a case-sensitive matching, or from the "\~*" symbols for case-insensitive matching. The regular expression can contain named and positional captures, and `replacement` can reference them:
-```
+```nginx
 proxy_cookie_value sessionid ~(\d+) abcdefghij$1;
 ```
 Please note that The regular expression of `cookie` can contain named and positional captures, but `replacement` cannot reference them.
@@ -686,12 +683,12 @@ Enables or disables `Vary` header handling for upstream cache.
 
 The string parameter can be used to explicitly specify one or more header names to vary on, instead of relying on the upstream response's `Vary` header. An empty string disables the `Vary` header handling. The parameter value can contain variables.
 
-```
+```nginx
 proxy_cache_vary Test-Header;
 ```
 The cache will be differentiated by the value of the `Test-Header` request header.
 
-```
+```nginx
 proxy_cache_vary "Test-Header-A, Test-Header-B";
 ```
 The cache will be differentiated based on the values of **both** `Test-Header-A` and `Test-Header-B`.
@@ -768,7 +765,7 @@ Defines the request header fields whose value will be used to replace the client
 
 If multiple request fields are defined, the header values ​​will be checked in the order defined in the configuration, and the first header with a valid value will be used:
 
-```
+```nginx
 real_ip_header X-Real-IP Cdn-Src-Ip X-Forwarded-For;
 ```
 The values ​​of the above headers will be checked in turn until a valid value is found.
@@ -809,7 +806,7 @@ Supports the use of `&&` and `||` operators in if.
 Supports parenthesis-based subconditions.
 
 Example:
-```
+```nginx
 if ($remote_addr = 192.168.1.1 && ($http_user_agent ~ Mozilla || $server_port > 808)) {
     return 404;
 }
@@ -842,6 +839,31 @@ Similar to if, but if this directive is not preceded by an if/elif directive, or
 Similar to if and elif, but does not contain any conditional expressions, it is always true. If this directive is not preceded by an if/elif directive, or the result of the leading if/elif directive is true, it will not take effect.
 
 > This directive will create a new location just like if, please refer to [if is evil](https://web.archive.org/web/20231227223503/https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/)
+
+### Support for "goto" directive
+
+The original work is from [Angie](https://github.com/webserver-llc/angie/commit/8b6489cbbe03dbcf8b99f996c785099fcfc2d922).
+
+* **Syntax:** *goto @named_location;*
+
+* **Default:** *-*
+
+* **Context:** *server, if in server, location, if in location*
+
+Performs an unconditional internal redirect to a named location without modifying the `$uri`. Unlike `rewrite`, the directive does not change `$uri`. The redirect consumes one `uri_changes` slot; a cycle is detected and results in a 500 error.
+
+The directive provides a clean alternative to common workarounds used to jump to a named location from the rewrite phase, such as abusing `try_files` with a guaranteed-nonexistent path as a fallback, or triggering `error_page` with an otherwise-unused status code via `return`.
+
+Example:
+```nginx
+location /one {
+    goto @two;
+}
+
+location @two {
+    return 200 "Hello from @two";
+}
+```
 
 [Back to TOC](#table-of-contents)
 
@@ -909,61 +931,19 @@ Based on the original `if=` parameter, you can achieve the opposite effect by ch
 
 [Back to TOC](#table-of-contents)
 
-## ngx_http_waf_module (3rd-party module)
+## ngx_http_modsecurity_module (3rd-party module)
 
-refer to [ngx_waf](https://github.com/ADD-SP/ngx_waf/tree/current).
+refer to [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module).
 
-This patch makes some changes to this module, mainly adding more switches for fine-grained control of WAF behavior. In addition, it also changes the appearance of the default challenge or error page and the path where the configuration file is read.
+This module connects NGINX/OpenResty with libModSecurity v3. This bundle applies an additional patch that adds log variables for ModSecurity interventions and matched rule IDs, skips deleted request/response headers, and adds `modsecurity_bypass`.
 
-### waf_bypass
-
-* **Syntax:** *waf_bypass string ...;*
-
+### modsecurity_bypass
+* **Syntax:** *modsecurity_bypass string ...;*
 * **Default:** *-*
 
 * **Context:** *http, server, location*
 
-Defines conditions under which the request will be checked by waf. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf.
-
-### waf_cc_deny_bypass
-
-* **Syntax:** *waf_cc_deny_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf cc deny function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf cc deny function.
-
-### waf_under_attack_bypass
-
-* **Syntax:** *waf_under_attack_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf under attack function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf under attack function.
-
-### waf_captcha_bypass
-
-* **Syntax:** *waf_captcha_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf captcha function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf captcha function.
-
-### waf_modsecurity_bypass
-
-* **Syntax:** *waf_modsecurity_bypass string ...;*
-
-* **Default:** *-*
-
-* **Context:** *http, server, location*
-
-Defines conditions under which the request will be checked by waf modsecurity function. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by waf modsecurity function.
+Defines conditions under which the request will be checked by modsecurity. If at least one value of the string parameters is not empty and is not equal to “0” then the request will be checked by modsecurity.
 
 [Back to TOC](#table-of-contents)
 
