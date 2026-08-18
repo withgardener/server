@@ -15,29 +15,38 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
   - [ngx\_http](#ngx_http)
     - [Variables for timestamps and time spent on related operations](#variables-for-timestamps-and-time-spent-on-related-operations)
   - [ngx\_http\_core\_module](#ngx_http_core_module)
+    - [auto\_redirect](#auto_redirect)
     - [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
     - [Enhancement of unique request id](#enhancement-of-unique-request-id)
     - [Optimization of default error page](#optimization-of-default-error-page)
     - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
-    - [Conditional error\_page with condition and when](#conditional-error_page-with-condition-and-when)
+    - [Conditional error\_page](#conditional-error_page)
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
   - [ngx\_http\_ssl\_module](#ngx_http_ssl_module)
     - [Optimizing TLS over TCP to reduce latency](#optimizing-tls-over-tcp-to-reduce-latency)
     - [Strict SNI validation](#strict-sni-validation)
     - [Variables about SSL handshake timestamps and time spent](#variables-about-ssl-handshake-timestamps-and-time-spent)
   - [ngx\_http\_slice\_filter\_module](#ngx_http_slice_filter_module)
-    - [slice\_allow\_methods](#slice_allow_methods)
-    - [slice\_check\_etag](#slice_check_etag)
-    - [slice\_check\_last\_modified](#slice_check_last_modified)
+    - [slice](#slice)
+    - [slice\_size](#slice_size)
+    - [slice\_bypass](#slice_bypass)
+    - [slice\_verify\_etag](#slice_verify_etag)
+    - [slice\_verify\_last\_modified](#slice_verify_last_modified)
+    - [$slice\_error](#slice_error)
   - [ngx\_http\_sub\_filter\_module](#ngx_http_sub_filter_module)
-    - [Conditional sub\_filter with condition and when](#conditional-sub_filter-with-condition-and-when)
+    - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
+    - [Proxy upstream Host](#proxy-upstream-host)
+    - [gRPC upstream URI](#grpc-upstream-uri)
+    - [gRPC upstream method](#grpc-upstream-method)
+    - [gRPC upstream authority](#grpc-upstream-authority)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
   - [ngx\_http\_upstream\_module](#ngx_http_upstream_module)
     - [Extra variables for upstream information](#extra-variables-for-upstream-information)
+    - [Upstream errors](#upstream-errors)
   - [ngx\_http\_realip\_module](#ngx_http_realip_module)
     - [Configuring real client IP with multiple request headers](#configuring-real-client-ip-with-multiple-request-headers)
   - [ngx\_http\_rewrite\_module](#ngx_http_rewrite_module)
@@ -46,12 +55,16 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Support for "elif" and "else" directives](#support-for-elif-and-else-directives)
     - [Support for "goto" directive](#support-for-goto-directive)
   - [ngx\_http\_gunzip\_module](#ngx_http_gunzip_module)
+    - [Conditional gunzip](#conditional-gunzip)
     - [Support for forced gzip decompression](#support-for-forced-gzip-decompression)
   - [ngx\_http\_gzip\_filter\_module](#ngx_http_gzip_filter_module)
+    - [Conditional gzip](#conditional-gzip)
+    - [Conditional gzip\_comp\_level](#conditional-gzip_comp_level)
+    - [Conditional gzip\_min\_length](#conditional-gzip_min_length)
     - [gzip\_max\_length](#gzip_max_length)
     - [gzip\_bypass](#gzip_bypass)
   - [ngx\_http\_log\_module](#ngx_http_log_module)
-    - [Conditional access\_log with condition and when](#conditional-access_log-with-condition-and-when)
+    - [Conditional access\_log](#conditional-access_log)
   - [ngx\_http\_modsecurity\_module (3rd-party module)](#ngx_http_modsecurity_module-3rd-party-module)
     - [modsecurity\_bypass](#modsecurity_bypass)
   - [ngx\_stream\_ssl\_module](#ngx_stream_ssl_module)
@@ -108,7 +121,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
-* [ngx_http_log_var_set_module](https://git.hanada.info/hanada/ngx_http_log_var_set_module)
+* [ngx_http_log_set_module](https://git.hanada.info/hanada/ngx_http_log_set_module)
 * [ngx_http_loop_detect_module](https://git.hanada.info/hanada/ngx_http_loop_detect_module)
 * [ngx_http_lua_config_module](https://git.hanada.info/hanada/ngx_http_lua_config_module)
 * [ngx_http_proxy_filter_module](https://git.hanada.info/hanada/ngx_http_proxy_filter_module)
@@ -119,7 +132,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
 * [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
 * [ngx_http_proxy_auth_internal_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_internal_module)
-* [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
+* [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
 * [ngx_http_qrcode_module](https://git.hanada.info/hanada/ngx_http_qrcode_module)
 * [ngx_http_replace_filter_module](https://github.com/OpenResty/replace-filter-nginx-module)
 * [ngx_http_proxy_request_cookies_control_module](https://git.hanada.info/hanada/ngx_http_proxy_request_cookies_control_module)
@@ -148,7 +161,7 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_stream_lua_upstream_module](https://git.hanada.info/hanada/ngx_stream_lua_upstream_module)
 * [ngx_stream_access_control_module](https://git.hanada.info/hanada/ngx_stream_access_control_module)
 * [ngx_stream_error_log_write_module](https://git.hanada.info/hanada/ngx_stream_error_log_write_module)
-* [ngx_stream_log_var_set_module](https://git.hanada.info/hanada/ngx_stream_log_var_set_module)
+* [ngx_stream_log_set_module](https://git.hanada.info/hanada/ngx_stream_log_set_module)
 * [ngx_stream_label_module](https://git.hanada.info/hanada/ngx_stream_label_module)
 * [ngx_stream_var_module](https://git.hanada.info/hanada/ngx_stream_var_module)
 * [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module)
@@ -224,6 +237,17 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 
 ## ngx_http_core_module
 
+### auto_redirect
+
+* **Syntax:** *auto_redirect on | off | default;*
+
+* **Default:** *auto_redirect default;*
+
+* **Context:** *http, server, location*
+
+Controls the automatic permanent redirect for a prefix location whose name ends with `/` when the request URI matches the location name without the trailing slash. `on` enables the redirect, `off` disables it, and `default` preserves the behavior selected by directives such as `proxy_pass`.
+This directive is ported from [Angie](https://github.com/webserver-llc/angie/commit/bdaded513096c1df359f8ab540f57139a858cdbe).
+
 ### Support for https_allow_http in listen directive
 
 Allows the server to accept both HTTP and HTTPS requests on the same port, which is useful for scenarios where special ports are used. The original work is from [Tengine](https://github.com/alibaba/tengine).
@@ -274,8 +298,7 @@ Show up the following information in a default 4xx/5xx error page: The date, req
 
 * **Context:** *http, server, location*
 
-Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 
-4xx/5xx error page only when the error_page_server_info directive is enabled.
+Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 4xx/5xx error page only when the error_page_server_info directive is enabled.
 
 ### Support for ignoring invalid Range header
 
@@ -293,15 +316,11 @@ Specify whether to ignore an invalid range header. If enabled, invalid range hea
 
 * **Default:** *-*
 
-* **Context:** *http, server, location, http when, server when, location when*
+* **Context:** *http, server, location, when*
 
 For the original usage, please refer to [error_page](https://nginx.org/en/docs/http/ngx_http_core_module.html#error_page) of nginx documentation.
 
-Define conditions with `ngx_condition_module` and place each conditional error
-page in a `when` block. Multiple condition references in one `when` are ANDed;
-prefix a reference with `!` to negate it. Entries retain configuration order, so
-an earlier unconditional error page for the same status takes precedence over a
-later conditional entry.
+Define conditions with `ngx_condition_module` and place each conditional error page in a `when` block. Multiple condition references in one `when` are ANDed; prefix a reference with `!` to negate it. Entries retain configuration order, so an earlier unconditional error page for the same status takes precedence over a later conditional entry.
 
 ```nginx
 condition use_json_error str_eq $http_accept application/json;
@@ -440,51 +459,89 @@ New variables are introduced to get the start timestamp, end timestamp, and time
 
 ## ngx_http_slice_filter_module
 
-### slice_allow_methods
+### slice
 
-* **Syntax:** *slice_allow_methods GET | HEAD ...;*
+* **Syntax:** *slice on | off;*
 
-* **Default:** *slice_allow_methods GET HEAD;*
+* **Default:** *slice off;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
-Allow splitting responses into slices if the client request method is listed in this directive. Note that if the slice directive is unset or has the zero value, splitting the response into slices will still be disabled.
+Enables or disables response slicing. When `ngx_condition_module` is compiled, this directive can be placed in a `when` block. Slicing is performed only when this directive is enabled, `slice_size` is nonzero, and no `slice_bypass` expression evaluates to a nonempty value other than `0`.
 
-### slice_check_etag
+### slice_size
 
-* **Syntax:** *slice_check_etag on | off;*
+* **Syntax:** *slice_size size;*
 
-* **Default:** *slice_check_etag on;*
-
-* **Context:** *http, server, location*
-
-Whether to check the consistency of the Etag header in the slice. If it is enabled, the request will be terminated and an error will be reported when Etag mismatch in slice response occurs.
-
-### slice_check_last_modified
-
-* **Syntax:** *slice_check_last_modified on | off;*
-
-* **Default:** *slice_check_last_modified off;*
+* **Default:** *slice_size 0;*
 
 * **Context:** *http, server, location*
 
-Whether to check the consistency of the Last-Modified header in the slice. If it is enabled, the request will be terminated and an error will be reported when Last-Modified mismatch in slice response occurs.
+Sets the size of each slice. It retains the behavior and size syntax of the original `slice` directive. A value of `0` disables slicing regardless of the selected `slice` value.
+
+### slice_bypass
+
+* **Syntax:** *slice_bypass $variable;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location*
+
+Disables slicing for the current request when the configured complex value, usually a variable, evaluates to a nonempty value other than `0`.
+
+### slice_verify_etag
+
+* **Syntax:** *slice_verify_etag on | off;*
+
+* **Default:** *slice_verify_etag on;*
+
+* **Context:** *http, server, location*
+
+Controls ETag consistency verification between slice responses. A mismatch terminates the request and records an error.
+
+### slice_verify_last_modified
+
+* **Syntax:** *slice_verify_last_modified on | off;*
+
+* **Default:** *slice_verify_last_modified off;*
+
+* **Context:** *http, server, location*
+
+Controls Last-Modified consistency verification between slice responses. A mismatch terminates the request and records an error.
+
+### $slice_error
+
+The `$slice_error` variable reports the first error recorded by the slice
+filter. The main request and its slice subrequests share this state, so the
+value remains available in the main request's access log after a subrequest
+fails. It returns `ERR_NONE` when no slice filter error was recorded and is
+not found when slice processing was not entered.
+
+| Value | Description |
+| --- | --- |
+| **ERR_NONE** | No slice filter error was recorded. |
+| **ERR_UNEXPECTED_STATUS** | A slice subrequest returned a status other than `206`. |
+| **ERR_ETAG_MISMATCH** | The ETag changed between slice responses. |
+| **ERR_LAST_MODIFIED_MISMATCH** | The Last-Modified value changed between slice responses. |
+| **ERR_INVALID_RANGE** | The slice response contained an invalid `Content-Range` header. |
+| **ERR_NO_COMPLETE_LENGTH** | The `Content-Range` header did not include a complete response length. |
+| **ERR_UNEXPECTED_RANGE** | The returned range did not match the requested slice. |
+| **ERR_MISSING_RESPONSE** | The slice body completed without an active slice response. |
+| **ERR_SUBREQUEST_FAILED** | Creating the next slice subrequest failed. |
 
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_sub_filter_module
 
-### Conditional sub_filter with condition and when
+### Conditional sub_filter
 
 * **Syntax:** *sub_filter string replacement;*
 
 * **Default:** *-*
 
-* **Context:** *http, server, location, http when, server when, location when*
+* **Context:** *http, server, location, when*
 
-Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter)
-for the original directive behavior. Define conditions with `ngx_condition_module`
-and place conditional replacement pairs in `when` blocks.
+Refer to [sub_filter](https://nginx.org/en/docs/http/ngx_http_sub_module.html#sub_filter) for the original directive behavior. Define conditions with `ngx_condition_module` and place conditional replacement pairs in `when` blocks.
 
 ```nginx
 condition replace_origin str_eq $upstream_type origin;
@@ -497,10 +554,7 @@ when replace_origin {
 sub_filter_once off;
 ```
 
-All unconditional pairs and all pairs whose conditions match are applied
-together in configuration order. The native inheritance rule is unchanged:
-pairs are inherited from the previous configuration level only when the
-current level defines no `sub_filter` pair, including pairs inside `when`.
+All unconditional pairs and all pairs whose conditions match are applied together in configuration order. The native inheritance rule is unchanged: pairs are inherited from the previous configuration level only when the current level defines no `sub_filter` pair, including pairs inside `when`.
 
 [Back to TOC](#table-of-contents)
 
@@ -516,7 +570,75 @@ Modules currently integrated with this framework:
 * [ngx_http_proxy_auth_netstorage_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_netstorage_module)
 * [ngx_http_proxy_auth_basic_module](https://git.hanada.info/hanada/ngx_http_proxy_auth_basic_module)
 * [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
-* [ngx_http_proxy_var_set_module](https://git.hanada.info/hanada/ngx_http_proxy_var_set_module)
+* [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
+
+> The Host and `:authority` handling described below is scheduled for inclusion in nginx 1.31.4. This bundle only backports the upstream implementation to its current nginx base.
+
+### Proxy upstream Host
+
+* **Syntax:** *proxy_set_header Host value;*
+
+* **Default:** *the host and optional port derived from proxy_pass*
+
+* **Context:** *http, server, location*
+
+Specifies the `Host` value sent to the proxy upstream. The value can contain variables. For an HTTP/1.x upstream, it is sent as the regular `Host` header. For an HTTP/2 upstream, it is used as the `:authority` pseudo-header and is not also sent as a regular header.
+
+If `proxy_set_header Host` is not configured, nginx uses the host and optional port derived from `proxy_pass`. An explicitly configured empty value has the same fallback behavior for HTTP/1.1 and HTTP/2; for HTTP/1.0, the `Host` header is omitted.
+
+```nginx
+proxy_set_header Host $proxy_host;
+```
+
+### gRPC upstream URI
+
+* **Syntax:** *grpc_pass grpc://address[uri] | grpcs://address[uri];*
+
+* **Default:** *-*
+
+* **Context:** *location, if in location*
+
+Allows `grpc_pass` to specify an upstream URI. For a static address, the part of the normalized request URI matching the current location is replaced by the configured URI, using the same replacement semantics as `proxy_pass`. A `grpc_pass` value containing variables uses its evaluated URI directly.
+
+The generated URI is used for both the gRPC `:path` pseudo-header and the upstream request URI exposed to proxy filters. `grpc_set_header` cannot override `:path`.
+
+```nginx
+location /api/ {
+    grpc_pass grpc://grpc_backend/package.Service/;
+}
+```
+
+A request for `/api/Method?debug=1` is sent upstream with `:path` set to `/package.Service/Method?debug=1`.
+
+### gRPC upstream method
+
+* **Syntax:** *grpc_method string;*
+
+* **Default:** *the client request method*
+
+* **Context:** *http, server, location*
+
+Specifies the method used for the gRPC upstream request. The value can contain variables. The evaluated value is used for both the gRPC `:method` pseudo-header and the upstream request method exposed to proxy filters. `grpc_set_header` cannot override `:method`.
+
+```nginx
+grpc_method POST;
+```
+
+### gRPC upstream authority
+
+* **Syntax:** *grpc_set_header Host value;*
+
+* **Default:** *the host and optional port derived from grpc_pass*
+
+* **Context:** *http, server, location*
+
+Specifies the gRPC `:authority` pseudo-header. The value can contain variables. `Host` is used only to construct `:authority` and is not sent as a regular gRPC header.
+
+If `grpc_set_header Host` is not configured, or if its evaluated value is empty, nginx uses the host and optional port derived from `grpc_pass`. Configure the authority through `Host`.
+
+```nginx
+grpc_set_header Host api.example.com;
+```
 
 ### Support for inheritance in "proxy_set_header" and its friends
 
@@ -785,6 +907,50 @@ The module [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_
 | **$upstream_read_time**                   | Keeps time spent on reading response from the upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. Times of several responses are separated by commas and colons like addresses in the $upstream_addr variable. |
 | **$upstream_last_read_time**              | Keeps time spent on reading response from the latest upstream server; the time is kept in seconds with millisecond resolution. Note that this timing starts only after receiving the upstream request header. |
 
+### Upstream errors
+
+The `$upstream_error` variable reports the result of every upstream attempt.
+Its sequence is aligned with `$upstream_status`: commas separate attempts and
+colons separate upstream groups. A successful attempt is represented by
+`ERR_NONE`, so a failed retry followed by success can be reported as:
+
+```text
+$upstream_status: 502, 200
+$upstream_error: ERR_CONNECT_FAILED, ERR_NONE
+$upstream_last_error: ERR_NONE
+```
+
+The `$upstream_last_error` variable reports the last value in that sequence;
+it does not maintain a separate error state. Failures that occur before an
+upstream state is created are retained and included in the same sequence.
+
+| Value | Description |
+| --- | --- |
+| **ERR_NONE** | No upstream error was recorded. The attempt completed successfully. |
+| **ERR_UNDEFINED** | Missing upstream configuration. |
+| **ERR_INVALID_URL** | The upstream URL, port, scheme, or request URI is invalid. |
+| **ERR_NO_RESOLVER** | A hostname must be resolved at runtime, but no resolver is configured. |
+| **ERR_SSL_CERT_LOAD_FAILED** | Loading the client SSL certificate or private key for the upstream connection failed. |
+| **ERR_INVALID_PROTOCOL_PARAMETER** | A protocol parameter, method, URI, header, SSL name, or similar request value is invalid or too large. |
+| **ERR_RESOLVE_TIMEOUT** | Resolving the upstream hostname timed out. |
+| **ERR_RESOLVE_FAILED** | Resolving the upstream hostname failed for a reason other than a timeout. |
+| **ERR_NO_LIVE_PEER** | No live peer is available in the selected upstream group. |
+| **ERR_CONNECT_TIMEOUT** | Establishing a connection to the upstream server timed out. |
+| **ERR_CONNECT_FAILED** | Establishing a connection to the upstream server failed. |
+| **ERR_SSL_HANDSHAKE_TIMEOUT** | The SSL handshake with the upstream server timed out. |
+| **ERR_SSL_HANDSHAKE_FAILED** | The SSL handshake with the upstream server failed for a reason other than a timeout or certificate validation error. |
+| **ERR_SSL_INVALID_CERT** | The upstream SSL certificate failed verification or did not match the configured SSL name. |
+| **ERR_WRITE_TIMEOUT** | Writing the request to the upstream server timed out. |
+| **ERR_WRITE_FAILED** | Writing the request to the upstream server failed for a reason other than a timeout. |
+| **ERR_READ_TIMEOUT** | Reading the response from the upstream server timed out. |
+| **ERR_READ_FAILED** | Reading the response from the upstream server failed for a reason other than a timeout or connection reset. |
+| **ERR_CONNECTION_RESET** | The upstream server reset or aborted the connection. |
+| **ERR_PREMATURELY_CLOSED** | The upstream server closed the connection before sending a complete response. |
+| **ERR_HEADER_TOO_LARGE** | The upstream response header exceeded the available header buffer size. |
+| **ERR_INVALID_HEADER** | The upstream server returned a malformed or otherwise invalid response header, or a cached upstream response contains an invalid header. |
+| **ERR_INVALID_RESPONSE** | The upstream server returned a malformed or incompatible protocol response. |
+| **ERR_INTERNAL_ERROR** | An internal error occurred while creating or processing the upstream request. |
+
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_realip_module
@@ -905,8 +1071,6 @@ location @two {
 
 ## ngx_http_gunzip_module
 
-### Support for forced gzip decompression
-
 This is a simple patch modifying the NGINX gunzip filter module to force inflate compressed responses. This is desirable in the context of an upstream source that sends responses gzipped. Please understand this will decompress all content, so you want to specify its use as specific as possible to avoid decompressing content that you otherwise would want left untouched.
 
 * It maintains transfering gzipped content between upstream server(s) and nginx, thus reducing network bandwidth.
@@ -917,29 +1081,71 @@ The original patch is from [A patch to force the gunzip filter module work](http
 
 The gunzip module is not built by default, you must specify --with-http_gunzip_module when compiling nginx.
 
-* **Syntax:** *gunzip_force string ...;*
+### Conditional gunzip
 
-* **Default:** *-*
+* **Syntax:** *gunzip on | off;*
 
-* **Context:** *http, server, location*
+* **Default:** *gunzip off;*
 
-Defines the conditions for forced brotli decompression. If at least one value in the string parameter is not empty and not equal to `0`, forced gzip decompression is performed. But it will not try to decompress responses that do not contain the response header Content-Encoding: gzip.
+* **Context:** *http, server, location, when*
+
+Enables or disables decompression of gzip responses for clients that do not support gzip.
+
+### Support for forced gzip decompression
+
+* **Syntax:** *gunzip_force on | off;*
+
+* **Default:** *gunzip_force off;*
+
+* **Context:** *http, server, location, when*
+
+When enabled, decompresses gzip responses without checking whether the client accepts gzip. Responses without `Content-Encoding: gzip` are not affected.
 
 [Back to TOC](#table-of-contents)
 
 ## ngx_http_gzip_filter_module
 
+### Conditional gzip
+
+* **Syntax:** *gzip on | off;*
+
+* **Default:** *gzip off;*
+
+* **Context:** *http, server, location, when*
+
+Refer to [gzip](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip) for the original directive behavior. Supports conditional configuration.
+
+### Conditional gzip_comp_level
+
+* **Syntax:** *gzip_comp_level level;*
+
+* **Default:** *gzip_comp_level 1;*
+
+* **Context:** *http, server, location, when*
+
+Refer to [gzip_comp_level](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip_comp_level) for the original directive behavior. Supports conditional configuration.
+
+### Conditional gzip_min_length
+
+* **Syntax:** *gzip_min_length length;*
+
+* **Default:** *gzip_min_length 20;*
+
+* **Context:** *http, server, location, when*
+
+Refer to [gzip_min_length](https://nginx.org/en/docs/http/ngx_http_gzip_module.html#gzip_min_length) for the original directive behavior. Supports conditional configuration.
+
 ### gzip_max_length
 
 * **Syntax:** *gzip_max_length length;*
 
-* **Default:** *gzip_max_length 0*;
+* **Default:** *gzip_max_length 0;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
-Sets the maximum length of a response that will be gzipped. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit.
+Sets the maximum length of a response that will be gzipped. The length is determined only from the “Content-Length” response header field. A value of 0 means no upper limit. Supports conditional configuration.
 
-###	gzip_bypass
+### gzip_bypass
 
 * **Syntax:** *gzip_bypass string ...;*
 
@@ -947,7 +1153,7 @@ Sets the maximum length of a response that will be gzipped. The length is determ
 
 * **Context:** *http, server, location*
 
-Defines conditions under which the response will gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
+Defines conditions under which the response will not be gzipped. If at least one value of the string parameters is not empty and is not equal to “0” then the response will not be gzipped.
 
 [Back to TOC](#table-of-contents)
 
