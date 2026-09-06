@@ -18,7 +18,7 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [auto\_redirect](#auto_redirect)
     - [Support for https\_allow\_http in listen directive](#support-for-https_allow_http-in-listen-directive)
     - [Enhancement of unique request id](#enhancement-of-unique-request-id)
-    - [Optimization of default error page](#optimization-of-default-error-page)
+    - [Configurable default error pages](#configurable-default-error-pages)
     - [Support for ignoring invalid Range header](#support-for-ignoring-invalid-range-header)
     - [Conditional error\_page](#conditional-error_page)
     - [More directives for not modified checking](#more-directives-for-not-modified-checking)
@@ -37,10 +37,11 @@ OpenResty - A High Performance Web Server and CDN Cache Server Based on Nginx an
     - [Conditional sub\_filter](#conditional-sub_filter)
   - [ngx\_http\_proxy\_module and related modules](#ngx_http_proxy_module-and-related-modules)
     - [Proxy filter Framework](#proxy-filter-framework)
-    - [Proxy upstream Host](#proxy-upstream-host)
+    - [gRPC filter Framework](#grpc-filter-framework)
+    - [gRPC upstream request header variables](#grpc-upstream-request-header-variables)
     - [gRPC upstream URI](#grpc-upstream-uri)
     - [gRPC upstream method](#grpc-upstream-method)
-    - [gRPC upstream authority](#grpc-upstream-authority)
+    - [Conditional upstream directives](#conditional-upstream-directives)
     - [Support for inheritance in "proxy\_set\_header" and its friends](#support-for-inheritance-in-proxy_set_header-and-its-friends)
     - [Enhancement of upstream cookie handler](#enhancement-of-upstream-cookie-handler)
     - [Enhancement of upstream cache control](#enhancement-of-upstream-cache-control)
@@ -108,7 +109,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_auth_hash_module](https://git.hanada.info/hanada/ngx_http_auth_hash_module)
 * [ngx_http_auth_hmac_module](https://git.hanada.info/hanada/ngx_http_auth_hmac_module)
 * [ngx_http_auth_internal_module](https://git.hanada.info/hanada/ngx_http_auth_internal_module)
-* [ngx_http_auth_ldap_module](https://git.hanada.info/hanada/ngx_http_auth_ldap_module)
 * [ngx_http_brotli_module](https://git.hanada.info/hanada/ngx_http_brotli_module)
 * [ngx_http_cache_purge_module](https://github.com/nginx-modules/ngx_cache_purge)
 * [ngx_http_compression_normalize_module](https://git.hanada.info/hanada/ngx_http_compression_normalize_module)
@@ -117,7 +117,9 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_delay_module](https://git.hanada.info/hanada/ngx_http_delay_module)
 * [ngx_http_error_log_write_module](https://git.hanada.info/hanada/ngx_http_error_log_write_module)
 * [ngx_http_extra_variables_module](https://git.hanada.info/hanada/ngx_http_extra_variables_module)
-* [ngx_http_flv_live_module](https://github.com/winshining/nginx-http-flv-module)
+* [ngx_http_grpc_filter_module](https://git.hanada.info/hanada/ngx_http_grpc_filter_module)
+* [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module)
+* [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module)
 * [ngx_http_internal_redirect_module](https://git.hanada.info/hanada/ngx_http_internal_redirect_module)
 * [ngx_http_label_module](https://git.hanada.info/hanada/ngx_http_label_module)
 * [ngx_http_limit_traffic_rate_filter_module](https://github.com/nginx-modules/ngx_http_limit_traffic_ratefilter_module)
@@ -149,7 +151,6 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_http_undeflate_filter_module](https://git.hanada.info/hanada/ngx_http_undeflate_filter_module)
 * [ngx_http_unzstd_filter_module](https://git.hanada.info/hanada/ngx_http_unzstd_filter_module)
 * [ngx_http_upstream_log_module](https://git.hanada.info/hanada/ngx_http_upstream_log_module)
-* [ngx_http_var_module](https://git.hanada.info/hanada/ngx_http_var_module)
 * [ngx_http_modsecurity_module](https://github.com/HanadaLee/ngx_http_modsecurity_module)
 * [ngx_http_weserv_module](https://github.com/weserv/images)
 * [ngx_http_zstd_module](https://git.hanada.info/hanada/ngx_http_zstd_module)
@@ -163,8 +164,8 @@ The following components are additionally bundled with OpenResty, some of which 
 * [ngx_stream_error_log_write_module](https://git.hanada.info/hanada/ngx_stream_error_log_write_module)
 * [ngx_stream_log_set_module](https://git.hanada.info/hanada/ngx_stream_log_set_module)
 * [ngx_stream_label_module](https://git.hanada.info/hanada/ngx_stream_label_module)
-* [ngx_stream_var_module](https://git.hanada.info/hanada/ngx_stream_var_module)
 * [ngx_stream_extra_variables_module](https://git.hanada.info/hanada/ngx_stream_extra_variables_module)
+* [ngx_var_module](https://git.hanada.info/hanada/ngx_var_module)
 * [coreruleset](https://github.com/coreruleset/coreruleset)
 * [uap-core](https://github.com/ua-parser/uap-core)
 * [luarocks](https://luarocks.org/)
@@ -280,25 +281,39 @@ Specify the format of the request ID.
 
 Specify the header name to be inherited by the request ID. If no header is specified, the request id will always be regenerated.
 
-### Optimization of default error page
+### Configurable default error pages
 
-Optimize the information displayed on the default error page to facilitate the collection of error feedback from clients.
+Configure the representation and diagnostic fields of nginx's built-in error responses.
 
-* **Syntax:** *error_page_server_info on | off;*
+* **Syntax:** *error_page_format default | json | xml;*
 
-* **Default:** *error_page_server_info on;*
-
-* **Context:** *http, server, location*
-
-Show up the following information in a default 4xx/5xx error page: The date, request client ip, the request id, and the hostname serving the request are included.
-
-* **Syntax:** *error_page_client_ip $variable;*
-
-* **Default:** *error_page_client_ip $remote_addr;*
+* **Default:** *error_page_format default;*
 
 * **Context:** *http, server, location*
 
-Specify the value of the ip item to be displayed on the default 4xx/5xx error page. Parameter value can contain variables. The value will be displayed on the default 4xx/5xx error page only when the error_page_server_info directive is enabled.
+Select the output format for built-in error pages. `default` uses the HTML response, while `json` and `xml` use structured responses with the `application/json` and `application/xml` content types. Structured responses always contain the status code, error reason, and error message.
+
+* **Syntax:** *error_page_field name $variable;*
+
+* **Default:** *-*
+
+* **Context:** *http, server, location*
+
+Add a field backed by an nginx variable to built-in 4xx/5xx error responses. HTML responses display configured fields in a table; JSON and XML responses add them to the structured body. Field values are resolved once per response and escaped for the selected format. A missing or empty variable is rendered as `-`.
+
+Multiple `error_page_field` directives preserve declaration order. The complete field list is inherited from the previous configuration level only when the current level defines no fields. Field names must start with a letter or underscore; subsequent characters may also contain digits, hyphens, and periods.
+
+`status`, `reason` and `message` are always included and cannot be overridden by `error_page_field`.
+
+Configure the required diagnostic fields explicitly:
+
+```nginx
+error_page_format json;
+error_page_field date $time_iso8601;
+error_page_field ip $remote_addr;
+error_page_field server $hostname;
+error_page_field id $request_id;
+```
 
 ### Support for ignoring invalid Range header
 
@@ -572,23 +587,13 @@ Modules currently integrated with this framework:
 * [ngx_http_proxy_headers_control_module](https://git.hanada.info/hanada/ngx_http_proxy_headers_control_module)
 * [ngx_http_proxy_set_module](https://git.hanada.info/hanada/ngx_http_proxy_set_module)
 
-> The Host and `:authority` handling described below is scheduled for inclusion in nginx 1.31.4. This bundle only backports the upstream implementation to its current nginx base.
+### gRPC filter Framework
 
-### Proxy upstream Host
+Provides the corresponding hook-based framework for gRPC upstream requests. The [ngx_http_grpc_headers_control_module](https://git.hanada.info/hanada/ngx_http_grpc_headers_control_module) and [ngx_http_grpc_set_module](https://git.hanada.info/hanada/ngx_http_grpc_set_module) use it to modify gRPC request and response headers and to set variables during response header processing.
 
-* **Syntax:** *proxy_set_header Host value;*
+### gRPC upstream request header variables
 
-* **Default:** *the host and optional port derived from proxy_pass*
-
-* **Context:** *http, server, location*
-
-Specifies the `Host` value sent to the proxy upstream. The value can contain variables. For an HTTP/1.x upstream, it is sent as the regular `Host` header. For an HTTP/2 upstream, it is used as the `:authority` pseudo-header and is not also sent as a regular header.
-
-If `proxy_set_header Host` is not configured, nginx uses the host and optional port derived from `proxy_pass`. An explicitly configured empty value has the same fallback behavior for HTTP/1.1 and HTTP/2; for HTTP/1.0, the `Host` header is omitted.
-
-```nginx
-proxy_set_header Host $proxy_host;
-```
+The `$grpc_http_<name>` variables expose the final request headers sent to a gRPC upstream after applying `grpc_set_header`, passed client headers, and gRPC request filters. Header names are converted to lowercase with dashes represented by underscores. Multiple values are joined with a comma and space. `$grpc_http_host` exposes the final `:authority` value.
 
 ### gRPC upstream URI
 
@@ -616,7 +621,7 @@ A request for `/api/Method?debug=1` is sent upstream with `:path` set to `/packa
 
 * **Default:** *the client request method*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Specifies the method used for the gRPC upstream request. The value can contain variables. The evaluated value is used for both the gRPC `:method` pseudo-header and the upstream request method exposed to proxy filters. `grpc_set_header` cannot override `:method`.
 
@@ -624,21 +629,65 @@ Specifies the method used for the gRPC upstream request. The value can contain v
 grpc_method POST;
 ```
 
-### gRPC upstream authority
+### Conditional upstream directives
 
-* **Syntax:** *grpc_set_header Host value;*
+When `ngx_condition_module` is compiled, the built-in upstream directives listed below can also be declared in applicable `when` blocks. HTTP directives support the `http`, `server`, and `location` levels, while stream proxy directives support the `stream` and `server` levels. Their native syntax, defaults, and inheritance behavior are unchanged.
 
-* **Default:** *the host and optional port derived from grpc_pass*
-
-* **Context:** *http, server, location*
-
-Specifies the gRPC `:authority` pseudo-header. The value can contain variables. `Host` is used only to construct `:authority` and is not sent as a regular gRPC header.
-
-If `grpc_set_header Host` is not configured, or if its evaluated value is empty, nginx uses the host and optional port derived from `grpc_pass`. Configure the authority through `Host`.
+For directives that select one effective value, declarations are evaluated in configuration order: the first unconditional declaration or declaration with a matching condition wins. A conditional declaration does not take precedence merely because it has a condition, so put conditional cases before an unconditional fallback.
 
 ```nginx
-grpc_set_header Host api.example.com;
+condition long_read str_in $http_x_profile slow debug;
+
+when long_read {
+    proxy_read_timeout 120s;
+}
+
+proxy_read_timeout 30s;
 ```
+
+The supported directives are listed explicitly below.
+
+| HTTP proxy | Stream proxy | fastcgi | scgi | uwsgi | grpc | memcached | tunnel |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `proxy_buffering` | — | `fastcgi_buffering` | `scgi_buffering` | `uwsgi_buffering` | — | — | — |
+| `proxy_cache_background_update` | — | `fastcgi_cache_background_update` | `scgi_cache_background_update` | `uwsgi_cache_background_update` | — | — | — |
+| `proxy_cache_hide_cookies` | — | `fastcgi_cache_hide_cookies` | `scgi_cache_hide_cookies` | `uwsgi_cache_hide_cookies` | — | — | — |
+| `proxy_cache_lock` | — | `fastcgi_cache_lock` | `scgi_cache_lock` | `uwsgi_cache_lock` | — | — | — |
+| `proxy_cache_lock_age` | — | `fastcgi_cache_lock_age` | `scgi_cache_lock_age` | `uwsgi_cache_lock_age` | — | — | — |
+| `proxy_cache_lock_timeout` | — | `fastcgi_cache_lock_timeout` | `scgi_cache_lock_timeout` | `uwsgi_cache_lock_timeout` | — | — | — |
+| `proxy_cache_max_length` | — | `fastcgi_cache_max_length` | `scgi_cache_max_length` | `uwsgi_cache_max_length` | — | — | — |
+| `proxy_cache_max_range_offset` | — | `fastcgi_cache_max_range_offset` | `scgi_cache_max_range_offset` | `uwsgi_cache_max_range_offset` | — | — | — |
+| `proxy_cache_methods` | — | `fastcgi_cache_methods` | `scgi_cache_methods` | `uwsgi_cache_methods` | — | — | — |
+| `proxy_cache_min_length` | — | `fastcgi_cache_min_length` | `scgi_cache_min_length` | `uwsgi_cache_min_length` | — | — | — |
+| `proxy_cache_min_uses` | — | `fastcgi_cache_min_uses` | `scgi_cache_min_uses` | `uwsgi_cache_min_uses` | — | — | — |
+| `proxy_cache_use_stale` | — | `fastcgi_cache_use_stale` | `scgi_cache_use_stale` | `uwsgi_cache_use_stale` | — | — | — |
+| `proxy_cache_vary` | — | `fastcgi_cache_vary` | `scgi_cache_vary` | `uwsgi_cache_vary` | — | — | — |
+| `proxy_connect_timeout` | `proxy_connect_timeout` | `fastcgi_connect_timeout` | `scgi_connect_timeout` | `uwsgi_connect_timeout` | `grpc_connect_timeout` | `memcached_connect_timeout` | `tunnel_connect_timeout` |
+| — | `proxy_timeout` | — | — | — | — | — | — |
+| `proxy_cookie_domain` | — | — | — | — | — | — | — |
+| `proxy_cookie_flags` | — | — | — | — | — | — | — |
+| `proxy_cookie_max_age` | — | — | — | — | — | — | — |
+| `proxy_cookie_path` | — | — | — | — | — | — | — |
+| `proxy_cookie_value` | — | — | — | — | — | — | — |
+| `proxy_force_ranges` | — | `fastcgi_force_ranges` | `scgi_force_ranges` | `uwsgi_force_ranges` | — | — | — |
+| `proxy_hide_cookie` | — | `fastcgi_hide_cookie` | `scgi_hide_cookie` | `uwsgi_hide_cookie` | — | — | — |
+| `proxy_ignore_cache_control` | — | `fastcgi_ignore_cache_control` | `scgi_ignore_cache_control` | `uwsgi_ignore_cache_control` | — | — | — |
+| `proxy_ignore_client_abort` | — | `fastcgi_ignore_client_abort` | `scgi_ignore_client_abort` | `uwsgi_ignore_client_abort` | — | — | — |
+| `proxy_ignore_headers` | — | `fastcgi_ignore_headers` | `scgi_ignore_headers` | `uwsgi_ignore_headers` | `grpc_ignore_headers` | — | — |
+| `proxy_limit_rate` | — | `fastcgi_limit_rate` | `scgi_limit_rate` | `uwsgi_limit_rate` | — | — | — |
+| `proxy_next_upstream` | `proxy_next_upstream` | `fastcgi_next_upstream` | `scgi_next_upstream` | `uwsgi_next_upstream` | `grpc_next_upstream` | `memcached_next_upstream` | `tunnel_next_upstream` |
+| `proxy_next_upstream_timeout` | `proxy_next_upstream_timeout` | `fastcgi_next_upstream_timeout` | `scgi_next_upstream_timeout` | `uwsgi_next_upstream_timeout` | `grpc_next_upstream_timeout` | `memcached_next_upstream_timeout` | `tunnel_next_upstream_timeout` |
+| `proxy_next_upstream_tries` | `proxy_next_upstream_tries` | `fastcgi_next_upstream_tries` | `scgi_next_upstream_tries` | `uwsgi_next_upstream_tries` | `grpc_next_upstream_tries` | `memcached_next_upstream_tries` | `tunnel_next_upstream_tries` |
+| `proxy_pass_request_body` | — | `fastcgi_pass_request_body` | `scgi_pass_request_body` | `uwsgi_pass_request_body` | — | — | — |
+| `proxy_pass_request_headers` | — | `fastcgi_pass_request_headers` | `scgi_pass_request_headers` | `uwsgi_pass_request_headers` | — | — | — |
+| `proxy_read_timeout` | — | `fastcgi_read_timeout` | `scgi_read_timeout` | `uwsgi_read_timeout` | `grpc_read_timeout` | `memcached_read_timeout` | `tunnel_read_timeout` |
+| `proxy_request_buffering` | — | `fastcgi_request_buffering` | `scgi_request_buffering` | `uwsgi_request_buffering` | — | — | — |
+| `proxy_send_timeout` | — | `fastcgi_send_timeout` | `scgi_send_timeout` | `uwsgi_send_timeout` | `grpc_send_timeout` | `memcached_send_timeout` | `tunnel_send_timeout` |
+| `proxy_http_version` | — | — | — | — | — | — | — |
+| `proxy_method` | — | — | — | — | `grpc_method` | — | — |
+| `proxy_redirect` | — | — | — | — | — | — | — |
+| `proxy_ssl_name` | `proxy_ssl_name` | — | — | `uwsgi_ssl_name` | `grpc_ssl_name` | — | — |
+| `proxy_ssl_server_name` | `proxy_ssl_server_name` | — | — | `uwsgi_ssl_server_name` | `grpc_ssl_server_name` | — | — |
 
 ### Support for inheritance in "proxy_set_header" and its friends
 
@@ -668,71 +717,53 @@ Allows the merge inheritance of fastcgi_param in receiving contexts.
 
 ### Enhancement of upstream cookie handler
 
-In addition to the original three directives(`proxy_cookie_domain`, `proxy_cookie_flags` and `proxy_cookie_path`), more processing directives are added to more efficiently rewrite the the "Set-Cookie" header of the upstream response.
+In addition to the native `proxy_cookie_domain`, `proxy_cookie_flags`, and `proxy_cookie_path` directives, this bundle provides directives for rewriting cookie values and expiration times.
 
 * **Syntax:** *proxy_cookie_value off;*
-*proxy_cookie_value cookie cookie_value replacement;*
+*proxy_cookie_value cookie value replacement;*
 
 * **Default:** *proxy_cookie_value off;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
-Sets a text that should be changed in the cookie value of the "Set-Cookie" header fields of a proxied server response. Suppose a proxied server returned the "Set-Cookie" header field and cookie name "sessionid" with a value "1234567890". The directive
-```nginx
-proxy_cookie_value sessionid 1234567890 abcdefghij;
-```
-will rewrite cookie value to "abcdefghij".
+Rewrites the value of a cookie in a proxied response. Plain cookie names are matched case-insensitively and can contain variables. A cookie name starting with `~` is treated as a case-insensitive regular expression.
 
-The `cookie`, `cookie_value` and `replacement` strings can contain variables.
+For a plain `value`, the matching prefix is replaced and the rest of the cookie value is preserved. A value starting with `~` uses a case-sensitive regular expression, while `~*` uses a case-insensitive regular expression. The `replacement` can contain variables and can reference captures from the value regular expression.
+
 ```nginx
-proxy_cookie_value $http_set_cookie_name $http_match_cookie $http_new_cookie;
+proxy_cookie_value sessionid old- new-;
+proxy_cookie_value ~^session_ ~*^old-(.+)$ new-$1;
 ```
 
-The `cookie` can also be specified using regular expressions.
-```nginx
-proxy_cookie_value ~session_.* 1234567890 abcdefghij;
-```
+Several `proxy_cookie_value` directives can be configured at the same level. The first rule with a matching cookie name is selected. The `off` parameter cancels rules inherited from the previous configuration level.
 
-The `cookie_value` can also be specified using regular expressions. In this case, `cookie_value` should either start from the "\~" symbol for a case-sensitive matching, or from the "\~*" symbols for case-insensitive matching. The regular expression can contain named and positional captures, and `replacement` can reference them:
-```nginx
-proxy_cookie_value sessionid ~(\d+) abcdefghij$1;
-```
-Please note that The regular expression of `cookie` can contain named and positional captures, but `replacement` cannot reference them.
-
-Several `proxy_cookie_value` directives can be specified on the same level. If several directives can be applied to the cookie, the first matching directive will be chosen.
-
-The off parameter cancels the effect of the `proxy_cookie_value` directives inherited from the previous configuration level.
-
-
-* **Syntax:** *proxy_cookie_max_age off;*  *proxy_cookie_max_age cookie cookie time;*
+* **Syntax:** *proxy_cookie_max_age off;*
+*proxy_cookie_max_age cookie time;*
 
 * **Default:** *proxy_cookie_max_age off;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
-Sets the maximum age of the cookie in the "Set-Cookie" header fields of a proxied server response.
+Sets the expiration time of a cookie in a proxied response. Existing `Max-Age` and `Expires` attributes are rewritten; if neither attribute is present, a `Max-Age` attribute is added. The time supports nginx time units such as `30m` and `1h`.
 
-This directive allows controlling the expiration time of specific cookies by modifying their "Max-Age" or "Expires" attribute. if the "Max-Age" or "Expires" attribute is not set, "Max-Age" will be added to the cookie.
+Plain cookie names are matched case-insensitively and can contain variables. A cookie name starting with `~` is treated as a case-insensitive regular expression.
 
-The `cookie` parameter specifies the name of the cookie to be modified, and the `time` parameter defines the maximum age to be set. The time value can be specified in seconds, or with time units like `1h`, `30m`, etc.
 ```nginx
-proxy_cookie_max_age SESSION 1h;
+proxy_cookie_max_age sessionid 1h;
+proxy_cookie_max_age ~^session_ 30m;
 ```
 
-The `cookie` can also be specified using regular expressions.
-```nginx
-proxy_cookie_max_age ~SESSION_.* 1h;
-```
+Several `proxy_cookie_max_age` directives can be configured at the same level. The first rule with a matching cookie name is selected. The `off` parameter cancels rules inherited from the previous configuration level.
 
-Several `proxy_cookie_max_age` directives can be specified on the same level. If several directives can be applied to the cookie, the first matching directive will be chosen.
+The cookie directives above, as well as the native proxy cookie directives, support conditional configuration through `when` as listed in the conditional upstream directive table.
 
-The off parameter cancels the effect of the `proxy_cookie_max_age` directives inherited from the previous configuration level.
+This bundle also adds controls for hiding upstream cookies by name and suppressing cached `Set-Cookie` fields.
 
 * **Syntax:** *proxy_hide_cookie cookie;*
 
 * **Default:** *-*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Sets "Set-Cookie" fields that will not be passed by cookie name.
 
@@ -744,11 +775,11 @@ See also the [proxy_hide_header](https://nginx.org/en/docs/http/ngx_http_proxy_m
 
 * **Default:** *proxy_cache_hide_cookies off;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Prevents Set-Cookie headers from being passed when the response is served from cache.
 
-> fastcgi_hide_cookies, scgi_hide_cookies and uwsgi_hide_cookies directives are also available.
+> fastcgi_cache_hide_cookies, scgi_cache_hide_cookies and uwsgi_cache_hide_cookies directives are also available.
 
 ### Enhancement of upstream cache control
 
@@ -766,7 +797,7 @@ Introduces some new cache-related directives to enhance control over upstream ca
 
 * **Default:** *-*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Disables processing of certain fields of Cache-Control header in the response from upstream. The following directives can be ignored:
 
@@ -835,7 +866,7 @@ This directive has been changed to support configuring the cache time as a varia
 
 * **Default:** *proxy_cache_vary on;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Enables or disables `Vary` header handling for upstream cache.
 
@@ -859,7 +890,7 @@ Note that this directive only affects upstream cache, not the response headers s
 
 * **Default:** *proxy_cache_min_length 0;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Specifies the minimum response length that can be cached. Only the size of Content-Length header is checked. This directive will be ignored for chunked responses or responses with neither Content-Length header nor Transfer-Encoding header.
 
@@ -869,7 +900,7 @@ Specifies the minimum response length that can be cached. Only the size of Conte
 
 * **Default:** *proxy_cache_max_length 0;*
 
-* **Context:** *http, server, location*
+* **Context:** *http, server, location, when*
 
 Specifies the maximun response length that can be cached. Only the size of Content-Length header is checked. This directive will be ignored for chunked responses or responses with neither Content-Length header nor Transfer-Encoding header. The zero value disables maximum cache size limiting.
 
@@ -989,11 +1020,13 @@ Extends the `if` directive of the original rewrite module. It has the following 
 Except for the original `if` condition operators, also supports:
 * `<`
 * `>`
+* `==` (numeric equality)
 * `!<` or `>=`
 * `!>` or `<=`
-* `^~` (start with) or `!^~` (not start with)
+* `^~` (starts with) or `!^~` (does not start with)
+* `~$` (ends with) or `!~$` (does not end with)
 
-The comparison symbol supports decimals and negative numbers. Non-numeric input will always result in a negative result.
+The numeric comparison operators support decimals and negative numbers. Non-numeric input always evaluates to false.
 
 ### "if" with multiple conditions
 

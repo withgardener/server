@@ -10,10 +10,10 @@ ARG RESTY_IMAGE_TAG="bookworm-slim"
 ARG RESTY_GIT_MIRROR="github.com"
 ARG RESTY_GIT_RAW_MIRROR="raw.githubusercontent.com"
 ARG RESTY_GIT_REPO="git.hanada.info"
-ARG RESTY_VERSION="1.31.3.1"
-ARG RESTY_RELEASE="352"
+ARG RESTY_VERSION="1.31.4.1"
+ARG RESTY_RELEASE="372"
 # ARG RESTY_SRC_URL_BASE="https://openresty.org/download"
-ARG RESTY_SRC_URL_BASE="https://rmp.hanada.info/directlink/raw-repo/openresty/src"
+ARG RESTY_SRC_URL_BASE="https://repo.hanada.info/openresty/src"
 ARG RESTY_LUAROCKS_VERSION="3.13.0"
 ARG RESTY_JEMALLOC_VERSION="5.3.1"
 ARG RESTY_LIBMAXMINDDB_VERSION="1.13.3"
@@ -101,13 +101,15 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_delay_module \
     --add-module=/build/modules/ngx_http_error_log_write_module \
     --add-module=/build/modules/ngx_http_extra_variables_module \
-    --add-module=/build/modules/ngx_http_flv_live_module \
     --add-module=/build/modules/ngx_http_internal_redirect_module \
     --add-module=/build/modules/ngx_http_label_module \
     --add-module=/build/modules/ngx_http_limit_traffic_rate_filter_module \
     --add-module=/build/modules/ngx_http_log_set_module \
     --add-module=/build/modules/ngx_http_loop_detect_module \
     --add-module=/build/modules/ngx_http_lua_config_module \
+    --add-module=/build/modules/ngx_http_grpc_filter_module \
+    --add-module=/build/modules/ngx_http_grpc_headers_control_module \
+    --add-module=/build/modules/ngx_http_grpc_set_module \
     --add-module=/build/modules/ngx_http_proxy_filter_module \
     --add-module=/build/modules/ngx_http_proxy_auth_netstorage_module \
     --add-module=/build/modules/ngx_http_proxy_auth_aws_module \
@@ -131,7 +133,6 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_http_undeflate_filter_module \
     --add-module=/build/modules/ngx_http_unzstd_filter_module \
     --add-module=/build/modules/ngx_http_upstream_log_module \
-    --add-module=/build/modules/ngx_http_var_module \
     --add-module=/build/modules/ngx_http_modsecurity_module \
     --add-module=/build/modules/ngx_http_weserv_module \
     --add-module=/build/modules/ngx_http_zstd_module \
@@ -147,7 +148,7 @@ ARG RESTY_CONFIG_OPTIONS="\
     --add-module=/build/modules/ngx_stream_log_set_module \
     --add-module=/build/modules/ngx_stream_lua_config_module \
     --add-module=/build/modules/ngx_stream_lua_upstream_module \
-    --add-module=/build/modules/ngx_stream_var_module \
+    --add-module=/build/modules/ngx_var_module \
 "
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 ARG RESTY_CONFIG_DEPS="--with-pcre --with-pcre-jit --with-libatomic \
@@ -260,30 +261,30 @@ RUN groupmod -n nginx www-data \
         libyajl-dev \
     && mkdir -p /build \
     && cd /build \
-    && curl -fSL ${RESTY_SRC_URL_BASE}/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+    && curl -fSLv ${RESTY_SRC_URL_BASE}/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
     && tar xzf openresty-${RESTY_VERSION}.tar.gz \
-    && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
+    && curl -fSLv https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && mkdir -p /build/patches /build/lib /build/modules /build/lualib \
     && cd /build/patches \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/openresty.git openresty \
     && cd /build/lib \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/jemalloc/jemalloc/releases/download/${RESTY_JEMALLOC_VERSION}/jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 -o jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
     && tar xjf jemalloc-${RESTY_JEMALLOC_VERSION}.tar.bz2 \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/libvips/libvips/releases/download/v${RESTY_LIBVIPS_VERSION}/vips-${RESTY_LIBVIPS_VERSION}.tar.xz -o vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
     && tar xf vips-${RESTY_LIBVIPS_VERSION}.tar.xz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/maxmind/libmaxminddb/releases/download/${RESTY_LIBMAXMINDDB_VERSION}/libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz -o libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && tar xzf libmaxminddb-${RESTY_LIBMAXMINDDB_VERSION}.tar.gz \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/openresty/sregex.git sregex \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/madler/zlib/releases/download/v${RESTY_ZLIB_VERSION}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/madler/zlib/releases/download/v${RESTY_ZLIB_VERSION}/zlib-${RESTY_ZLIB_VERSION}.tar.gz -o zlib-${RESTY_ZLIB_VERSION}.tar.gz \
     && tar xzf zlib-${RESTY_ZLIB_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/openssl/openssl/releases/download/openssl-${RESTY_OPENSSL_VERSION}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/openssl/openssl/releases/download/openssl-${RESTY_OPENSSL_VERSION}/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
     && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/PCRE2Project/pcre2/releases/download/pcre2-${RESTY_PCRE_VERSION}/pcre2-${RESTY_PCRE_VERSION}.tar.gz -o pcre2-${RESTY_PCRE_VERSION}.tar.gz \
     && tar xzf pcre2-${RESTY_PCRE_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/facebook/zstd/releases/download/v${RESTY_ZSTD_VERSION}/zstd-${RESTY_ZSTD_VERSION}.tar.gz -o zstd-${RESTY_ZSTD_VERSION}.tar.gz \
     && tar xzf zstd-${RESTY_ZSTD_VERSION}.tar.gz \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/bdwgc/libatomic_ops/releases/download/v${RESTY_LIBATOMIC_VERSION}/libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz -o libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && tar xzf libatomic_ops-${RESTY_LIBATOMIC_VERSION}.tar.gz \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/ua-parser/uap-cpp.git uap-cpp \
     && git clone --depth=1 --recurse-submodules --branch v${RESTY_MODSECURITY_VERSION} https://${RESTY_GIT_MIRROR}/owasp-modsecurity/ModSecurity.git modsecurity \
@@ -292,7 +293,6 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_REPO}/hanada/ngx_http_brotli_module.git ngx_http_brotli_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_ssl_fingerprint_module.git ngx_ssl_fingerprint_module \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/weserv/images.git ngx_http_weserv_module \
-    && git clone --depth=1 https://${RESTY_GIT_MIRROR}/winshining/nginx-http-flv-module.git ngx_http_flv_live_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/nginx-modules/ngx_cache_purge.git ngx_http_cache_purge_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_limit_traffic_rate_filter_module.git ngx_http_limit_traffic_rate_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_access_control_module.git ngx_http_access_control_module \
@@ -300,6 +300,9 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_internal_module.git ngx_http_auth_internal_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_hash_module.git ngx_http_auth_hash_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_auth_hmac_module.git ngx_http_auth_hmac_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_grpc_filter_module.git ngx_http_grpc_filter_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_grpc_headers_control_module.git ngx_http_grpc_headers_control_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_grpc_set_module.git ngx_http_grpc_set_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_filter_module.git ngx_http_proxy_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_args_control_module.git ngx_http_proxy_args_control_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_proxy_request_cookies_control_module.git ngx_http_proxy_request_cookies_control_module \
@@ -328,7 +331,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_normalize_module.git ngx_http_compression_normalize_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_compression_vary_filter_module.git ngx_http_compression_vary_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_rewrite_status_filter_module.git ngx_http_rewrite_status_filter_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_var_module.git ngx_http_var_module \
+    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_var_module.git ngx_var_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_security_headers_filter_module.git ngx_http_security_headers_filter_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_cors_module.git ngx_http_cors_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_http_log_set_module.git ngx_http_log_set_module \
@@ -345,10 +348,9 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_error_log_write_module.git ngx_stream_error_log_write_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_log_set_module.git ngx_stream_log_set_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_label_module.git ngx_stream_label_module \
-    && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_var_module.git ngx_stream_var_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_extra_variables_module.git ngx_stream_extra_variables_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_lua_upstream_state_module.git ngx_lua_upstream_state_module \
-    && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/Kong/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
+    && git clone --depth=1 --recurse-submodules --branch more_can_yield_phases https://${RESTY_GIT_MIRROR}/HanadaLee/lua-resty-lmdb.git ngx_lua_resty_lmdb_module \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/ngx_stream_lua_upstream_module.git ngx_stream_lua_upstream_module \
     && git clone --depth=1 https://${RESTY_GIT_MIRROR}/alibaba/tengine.git tengine \
     && mv tengine/modules/ngx_http_trim_filter_module ngx_http_trim_filter_module \
@@ -362,7 +364,7 @@ RUN groupmod -n nginx www-data \
     && git clone --depth=1 https://${RESTY_GIT_REPO}/hanada/lua-resty-mlcache.git lua-resty-mlcache \
     && git clone --depth=1 --recurse-submodules https://${RESTY_GIT_MIRROR}/HanadaLee/lua-lolhtml.git \
     && cd /build \
-    && curl -sSf https://sh.rustup.rs | sh -s -- -y \
+    && curl -fSLv https://sh.rustup.rs | sh -s -- -y \
     && . $HOME/.cargo/env \
     && cd /build/lib/jemalloc-${RESTY_JEMALLOC_VERSION} \
     && ./configure \
@@ -388,7 +390,7 @@ RUN groupmod -n nginx www-data \
     && ldconfig \
     && cd /build/lib/openssl-${RESTY_OPENSSL_VERSION} \
     && echo 'patching OpenSSL 3.x for OpenResty' \
-    && curl -s https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/refs/heads/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
+    && curl -fSLv https://${RESTY_GIT_RAW_MIRROR}/openresty/openresty/refs/heads/master/patches/openssl-${RESTY_OPENSSL_PATCH_VERSION}-sess_set_get_cb_yield.patch | patch -p1 \
     && echo 'patching OpenSSL 3.x for ngx_ssl_figerprint_module' \
     && patch -p1 < /build/modules/ngx_ssl_fingerprint_module/patches/openssl-3.5.5+.patch \
     && ./config \
@@ -452,9 +454,6 @@ RUN groupmod -n nginx www-data \
     && cd /build/modules/ngx_http_modsecurity_module \
     && echo 'patching ngx_http_modsecurity_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_modsecurity_module-ext.patch \
-    && cd /build/modules/ngx_http_flv_live_module \
-    && echo 'patching ngx_http_flv_live_module' \
-    && patch -p1 < /build/patches/openresty/patches/ngx_http_flv_live_module-server_metadata.patch \
     && cd /build/modules/ngx_http_loop_detect_module \
     && echo 'patching ngx_http_loop_detect_module' \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_loop_detect_module-cdn_id.patch \
@@ -479,7 +478,23 @@ RUN groupmod -n nginx www-data \
     && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-preaccess_by_lua.patch \
     && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) ext" \
-    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.3+.patch \
+    && patch -p1 < /build/patches/openresty/patches/nginx-ext_1.31.4+.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/redis-nginx-module-* \
+    && echo "patching ngx_http_redis_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_redis_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/redis2-nginx-module-* \
+    && echo "patching ngx_http_redis2_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_redis2_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/drizzle-nginx-module-* \
+    && echo "patching ngx_http_drizzle_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_drizzle_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_postgres-* \
+    && echo "patching ngx_postgres_module" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_postgres_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/ngx_lua-* \
+    && echo "patching ngx_http_lua_module for conditional upstream settings" \
+    && patch -p1 < /build/patches/openresty/patches/ngx_http_lua_module-conditional_upstream.patch \
+    && cd /build/openresty-${RESTY_VERSION}/bundle/nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_http_upstream_log_module" \
     && patch -p1 < /build/modules/ngx_http_upstream_log_module/ngx_http_upstream_log_1.25.3+.patch \
     && echo "patching nginx-$(echo ${RESTY_VERSION} | cut -c 1-6) for ngx_ssl_fingerprint_module" \
@@ -562,7 +577,7 @@ RUN groupmod -n nginx www-data \
     && mkdir -p /usr/local/openresty/share/uap-core \
     && cp /build/lib/uap-cpp/uap-core/regexes.yaml /usr/local/openresty/share/uap-core \
     && cd /usr/local/openresty/share \
-    && curl -fSL https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
+    && curl -fSLv https://${RESTY_GIT_MIRROR}/coreruleset/coreruleset/releases/download/v${RESTY_OWSAP_CRS_VERSION}/coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz -o coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && tar xzf coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && rm -f coreruleset-${RESTY_OWSAP_CRS_VERSION}-minimal.tar.gz \
     && mv coreruleset-${RESTY_OWSAP_CRS_VERSION} coreruleset \
